@@ -179,7 +179,7 @@
       </div>
       <div class="field">
         <label for="rateInput">Taux €/km</label>
-        <input id="rateInput" type="number" inputmode="decimal" min="0" step="0.01" value="0.36">
+        <input id="rateInput" type="number" inputmode="decimal" min="0" step="0.01" value="0.37">
       </div>
     </div>
     <div class="field" style="margin-top:10px">
@@ -190,6 +190,7 @@
 
   <button class="copy-btn" id="shareBtn">📤 Envoyer le récap (WhatsApp / Mail)</button>
   <button class="copy-btn" id="copyBtn" style="margin-top:10px">📋 Copier le récap du mois</button>
+  <button class="copy-btn" id="trimBtn" style="margin-top:10px">🗓️ Récap trimestriel (relevé officiel)</button>
 </div>
 <div class="toast" id="toast">Récap copié</div>
 
@@ -199,7 +200,7 @@
   const now=new Date();
   let viewYear=now.getFullYear(), viewMonth=now.getMonth();
   let monthData={};           // {"1":"velo","3":"trott",...}
-  let settings={km:0,rate:0.36};
+  let settings={km:0,rate:0.37};
   let saveTimer=null;
 
   const $=id=>document.getElementById(id);
@@ -264,7 +265,7 @@
     const s=await sGet('trajets:settings');
     if(s){settings=s;}
     $('kmInput').value=settings.km||0;
-    $('rateInput').value=settings.rate!=null?settings.rate:0.36;
+    $('rateInput').value=settings.rate!=null?settings.rate:0.37;
     $('nameInput').value=settings.name||'';
   }
   async function loadMonth(){
@@ -395,6 +396,44 @@
     }else{
       location.href='mailto:?subject='+encodeURIComponent('Indemnité trajets — '+monthTitle())+
         '&body='+encodeURIComponent(txt);
+    }
+  });
+
+  async function buildTrimRecap(){
+    const q=Math.floor(viewMonth/3);
+    const months=[q*3,q*3+1,q*3+2];
+    const km=parseFloat(settings.km)||0;
+    const rate=parseFloat(settings.rate)||0;
+    const fmtKm=n=>n.toLocaleString('fr-BE',{maximumFractionDigits:1});
+    let txt='RELEVÉ TRIMESTRIEL VÉLO — T'+(q+1)+' '+viewYear+'\n';
+    if(settings.name)txt+='Nom : '+settings.name+'\n';
+    txt+='Base : '+fmtKm(km)+' km A/R par jour × '+rate.toLocaleString('fr-BE',{maximumFractionDigits:2})+' €/km\n';
+    let totalDays=0;
+    for(const m of months){
+      const data=(await sGet(monthKey(viewYear,m)))||{};
+      const velo=[],trot=[];
+      Object.keys(data).map(Number).sort((a,b)=>a-b).forEach(d=>{
+        (data[d]==='velo'?velo:trot).push(d);
+      });
+      const mm=String(m+1).padStart(2,'0');
+      txt+='\n'+MONTHS[m].toUpperCase()+' — '+velo.length+' jour(s) · '+fmtKm(velo.length*km)+' km\n';
+      txt+=(velo.length?velo.map(d=>String(d).padStart(2,'0')+'/'+mm).join(' · '):'—')+'\n';
+      if(trot.length){
+        txt+='(jours trottinette, non éligibles : '+trot.map(d=>String(d).padStart(2,'0')+'/'+mm).join(' · ')+')\n';
+      }
+      totalDays+=velo.length;
+    }
+    txt+='\nTOTAL KM T'+(q+1)+' : '+fmtKm(totalDays*km)+' km ('+totalDays+' jours)\n';
+    txt+='MONTANT : '+fmtKm(totalDays*km)+' km × '+rate.toLocaleString('fr-BE',{maximumFractionDigits:2})+' € = '+fmtEuro(totalDays*km*rate)+'\n';
+    txt+='\n⏰ Formulaire + relevé à remettre à la cellule Traitement et Salaires avant le 10 du mois suivant le trimestre.';
+    return txt;
+  }
+  $('trimBtn').addEventListener('click',async()=>{
+    const txt=await buildTrimRecap();
+    if(navigator.share){
+      navigator.share({text:txt}).catch(()=>{});
+    }else if(navigator.clipboard&&navigator.clipboard.writeText){
+      navigator.clipboard.writeText(txt).then(()=>warn('Relevé trimestriel copié ✓')).catch(()=>{});
     }
   });
 
