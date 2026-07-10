@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Mes trajets vélo · trottinette</title>
+<title>Mes trajets vélo</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
@@ -18,7 +18,6 @@
     --mist:#E8F0EF;
     --mist-dim:#8FAAAD;
     --velo:#FFB937;
-    --trott:#5AC8E0;
     --line:rgba(232,240,239,.10);
   }
   *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -65,8 +64,6 @@
   .odo-big .unit{font-size:.85rem;font-weight:500;color:var(--mist-dim);margin-left:6px;font-family:'Sora',sans-serif}
   .odo-euro{font-family:'Chivo Mono',monospace;font-weight:700;font-size:1.5rem;color:var(--mist);font-variant-numeric:tabular-nums}
   .odo-sub{margin-top:8px;font-size:.72rem;color:var(--mist-dim);display:flex;justify-content:space-between}
-  .odo-split{display:flex;gap:14px}
-  .odo-split span{display:inline-flex;align-items:center;gap:4px}
 
   /* ---- calendar ---- */
   .weekdays,.grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
@@ -92,12 +89,10 @@
   .day.weekend{color:var(--mist-dim);background:rgba(20,53,64,.45)}
   .day.today{border-color:var(--mist);border-width:1.5px}
   .day.velo{background:rgba(255,185,55,.16);border-color:rgba(255,185,55,.55);color:var(--velo)}
-  .day.trott{background:rgba(90,200,224,.14);border-color:rgba(90,200,224,.55);color:var(--trott)}
 
   .legend{margin:14px 2px 22px;font-size:.72rem;color:var(--mist-dim);line-height:1.7}
   .legend b{color:var(--mist);font-weight:600}
   .legend .dot-v{color:var(--velo)}
-  .legend .dot-t{color:var(--trott)}
 
   /* ---- settings ---- */
   .settings{
@@ -152,10 +147,7 @@
       <div class="odo-euro" id="euroAmount">0,00 €</div>
     </div>
     <div class="odo-sub">
-      <div class="odo-split">
-        <span>🚲 <span id="veloCount">0</span></span>
-        <span>🛴 <span id="trottCount">0</span></span>
-      </div>
+      <span>🚲 Trajets domicile–travail à vélo</span>
       <span id="kmTotal">0 km</span>
     </div>
   </section>
@@ -166,7 +158,7 @@
   <div class="grid" id="grid"></div>
 
   <p class="legend">
-    Touche un jour : <b>1×</b> = <span class="dot-v">🚲 vélo</span> · <b>2×</b> = <span class="dot-t">🛴 trottinette</span> · <b>3×</b> = effacer.<br>
+    Touche un jour pour cocher <span class="dot-v">🚲</span>, retouche pour effacer.<br>
     <span id="storeMode"></span>
   </p>
 
@@ -197,7 +189,7 @@
   const MONTHS=['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
   const now=new Date();
   let viewYear=now.getFullYear(), viewMonth=now.getMonth();
-  let monthData={};           // {"1":"velo","3":"trott",...}
+  let monthData={};           // {"1":"velo","15":"velo",...}
   let settings={km:0,rate:0.37};
   let saveTimer=null;
 
@@ -297,18 +289,15 @@
     for(let d=1;d<=daysInMonth;d++){
       const btn=document.createElement('button');
       const dow=new Date(viewYear,viewMonth,d).getDay();
-      const state=monthData[d]||'';
+      const state=monthData[d]==='velo';
       btn.className='day'+(dow===0||dow===6?' weekend':'')+
         (isCurrentMonth&&d===now.getDate()?' today':'')+
-        (state?' '+state:'');
-      btn.innerHTML='<span>'+d+'</span><span class="ico">'+
-        (state==='velo'?'🚲':state==='trott'?'🛴':'')+'</span>';
-      btn.setAttribute('aria-label','Jour '+d+(state==='velo'?', vélo':state==='trott'?', trottinette':', aucun trajet'));
+        (state?' velo':'');
+      btn.innerHTML='<span>'+d+'</span><span class="ico">'+(state?'🚲':'')+'</span>';
+      btn.setAttribute('aria-label','Jour '+d+(state?', vélo':', aucun trajet'));
       btn.addEventListener('click',()=>{
-        const cur=monthData[d]||'';
-        if(cur==='')monthData[d]='velo';
-        else if(cur==='velo')monthData[d]='trott';
-        else delete monthData[d];
+        if(monthData[d]==='velo')delete monthData[d];
+        else monthData[d]='velo';
         saveMonth();render();
       });
       grid.appendChild(btn);
@@ -317,17 +306,11 @@
   }
 
   function updateOdometer(){
-    let v=0,t=0;
-    for(const k in monthData){
-      if(monthData[k]==='velo')v++;
-      else if(monthData[k]==='trott')t++;
-    }
-    const total=v+t;
-    const km=total*(parseFloat(settings.km)||0);
+    let v=0;
+    for(const k in monthData){if(monthData[k]==='velo')v++;}
+    const km=v*(parseFloat(settings.km)||0);
     const euro=km*(parseFloat(settings.rate)||0);
-    $('tripCount').textContent=total;
-    $('veloCount').textContent=v;
-    $('trottCount').textContent=t;
+    $('tripCount').textContent=v;
     $('kmTotal').textContent=km.toLocaleString('fr-BE',{maximumFractionDigits:1})+' km';
     $('euroAmount').textContent=fmtEuro(euro);
   }
@@ -362,16 +345,10 @@
     let totalDays=0;
     for(const m of months){
       const data=(await sGet(monthKey(viewYear,m)))||{};
-      const velo=[],trot=[];
-      Object.keys(data).map(Number).sort((a,b)=>a-b).forEach(d=>{
-        (data[d]==='velo'?velo:trot).push(d);
-      });
+      const velo=Object.keys(data).map(Number).sort((a,b)=>a-b).filter(d=>data[d]==='velo');
       const mm=String(m+1).padStart(2,'0');
       txt+='\n'+MONTHS[m].toUpperCase()+' — '+velo.length+' jour(s) · '+fmtKm(velo.length*km)+' km\n';
       txt+=(velo.length?velo.map(d=>String(d).padStart(2,'0')+'/'+mm).join(' · '):'—')+'\n';
-      if(trot.length){
-        txt+='(jours trottinette, non éligibles : '+trot.map(d=>String(d).padStart(2,'0')+'/'+mm).join(' · ')+')\n';
-      }
       totalDays+=velo.length;
     }
     txt+='\nTOTAL KM T'+(q+1)+' : '+fmtKm(totalDays*km)+' km ('+totalDays+' jours)\n';
