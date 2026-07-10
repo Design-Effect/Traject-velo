@@ -188,9 +188,7 @@
     </div>
   </section>
 
-  <button class="copy-btn" id="shareBtn">📤 Envoyer le récap (WhatsApp / Mail)</button>
-  <button class="copy-btn" id="copyBtn" style="margin-top:10px">📋 Copier le récap du mois</button>
-  <button class="copy-btn" id="trimBtn" style="margin-top:10px">🗓️ Récap trimestriel (relevé officiel)</button>
+  <button class="copy-btn" id="trimBtn">📤 Envoyer le relevé trimestriel</button>
 </div>
 <div class="toast" id="toast">Récap copié</div>
 
@@ -351,53 +349,6 @@
   $('kmInput').addEventListener('input',onSettingChange);
   $('rateInput').addEventListener('input',onSettingChange);
   $('nameInput').addEventListener('input',onSettingChange);
-
-  function monthTitle(){
-    return MONTHS[viewMonth].charAt(0).toUpperCase()+MONTHS[viewMonth].slice(1)+' '+viewYear;
-  }
-  function buildRecap(){
-    const veloDays=[],trotDays=[];
-    Object.keys(monthData).map(Number).sort((a,b)=>a-b).forEach(d=>{
-      (monthData[d]==='velo'?veloDays:trotDays).push(d);
-    });
-    const mm=String(viewMonth+1).padStart(2,'0');
-    const fmtDays=a=>a.length?a.map(d=>String(d).padStart(2,'0')+'/'+mm).join(' · '):'—';
-    const km=parseFloat(settings.km)||0;
-    const rate=parseFloat(settings.rate)||0;
-    const fmtKm=n=>n.toLocaleString('fr-BE',{maximumFractionDigits:1});
-    let txt='INDEMNITÉ TRAJETS — '+monthTitle().toUpperCase()+'\n';
-    if(settings.name)txt+='Nom : '+settings.name+'\n';
-    txt+='Base : '+fmtKm(km)+' km A/R × '+rate.toLocaleString('fr-BE',{maximumFractionDigits:2})+' €/km\n';
-    txt+='\n🚲 Vélo — '+veloDays.length+' jour(s) : '+fmtDays(veloDays)+'\n';
-    txt+='→ '+fmtKm(veloDays.length*km)+' km · '+fmtEuro(veloDays.length*km*rate)+'\n';
-    txt+='\n🛴 Trottinette — '+trotDays.length+' jour(s) : '+fmtDays(trotDays)+'\n';
-    txt+='→ '+fmtKm(trotDays.length*km)+' km · '+fmtEuro(trotDays.length*km*rate)+'\n';
-    const tot=veloDays.length+trotDays.length;
-    txt+='\nTOTAL : '+tot+' trajet(s) · '+fmtKm(tot*km)+' km · '+fmtEuro(tot*km*rate);
-    return txt;
-  }
-  $('copyBtn').addEventListener('click',()=>{
-    const txt=buildRecap();
-    const done=()=>warn('Récap copié ✓');
-    if(navigator.clipboard&&navigator.clipboard.writeText){
-      navigator.clipboard.writeText(txt).then(done).catch(()=>fallback(txt,done));
-    }else{fallback(txt,done);}
-    function fallback(text,cb){
-      const ta=document.createElement('textarea');
-      ta.value=text;document.body.appendChild(ta);ta.select();
-      try{document.execCommand('copy');}catch(e){}
-      document.body.removeChild(ta);cb();
-    }
-  });
-  $('shareBtn').addEventListener('click',()=>{
-    const txt=buildRecap();
-    if(navigator.share){
-      navigator.share({text:txt}).catch(()=>{});
-    }else{
-      location.href='mailto:?subject='+encodeURIComponent('Indemnité trajets — '+monthTitle())+
-        '&body='+encodeURIComponent(txt);
-    }
-  });
 
   async function buildTrimRecap(){
     const q=Math.floor(viewMonth/3);
