@@ -180,7 +180,7 @@
     </div>
   </section>
 
-  <button class="copy-btn" id="trimBtn">📤 Envoyer le relevé trimestriel</button>
+  <button class="copy-btn" id="trimBtn">📧 Envoyer le relevé trimestriel à l'administratif</button>
 </div>
 <div class="toast" id="toast">Récap copié</div>
 
@@ -356,13 +356,15 @@
     txt+='\n⏰ Formulaire + relevé à remettre à la cellule Traitement et Salaires avant le 10 du mois suivant le trimestre.';
     return txt;
   }
+  const ADMIN_EMAIL='Karim.naciri@arp-gan.be';
   $('trimBtn').addEventListener('click',async()=>{
     const txt=await buildTrimRecap();
-    if(navigator.share){
-      navigator.share({text:txt}).catch(()=>{});
-    }else if(navigator.clipboard&&navigator.clipboard.writeText){
-      navigator.clipboard.writeText(txt).then(()=>warn('Relevé trimestriel copié ✓')).catch(()=>{});
-    }
+    const q=Math.floor(viewMonth/3)+1;
+    const subject=['Relevé trimestriel vélo',settings.name,'T'+q+' '+viewYear]
+      .filter(Boolean).join(' — ');
+    location.href='mailto:'+ADMIN_EMAIL+
+      '?subject='+encodeURIComponent(subject)+
+      '&body='+encodeURIComponent(txt);
   });
 
   (async function init(){
